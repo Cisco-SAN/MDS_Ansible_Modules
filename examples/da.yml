@@ -1,0 +1,24 @@
+- name: Device Alias (NXOS)
+  gather_facts: no
+  hosts: 
+     - m9250i-107
+  vars:
+    creds:
+      host: "{{ inventory_hostname }}"
+      username: "{{ un }}"
+      password: "{{ pwd }}"
+      transport: cli
+  tasks:
+    
+    - name: Test that device alias module works
+      nxos_devicealias:
+          distribute: yes
+          mode: enhanced
+          da:
+              - { name: 'test1_add', pwwn: '56:2:22:11:22:88:11:67'}
+              - { name: 'test2_add', pwwn: '65:22:22:11:22:22:11:d'}
+              - { name: 'abc', remove: True}
+              - { name: 't$yz', remove: True} 
+          provider: "{{ creds }}"
+      register: result
+    - debug: var=result

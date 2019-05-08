@@ -1,0 +1,62 @@
+- name: Device Alias (NXOS)
+  gather_facts: no
+  hosts: 
+     - m9250i-107
+  vars:
+    creds:
+      host: "{{ inventory_hostname }}"
+      username: "{{ un }}"
+      password: "{{ pwd }}"
+      transport: cli
+
+  tasks:
+    - name: Test that zone/zoneset module works
+      nxos_zone_zoneset:
+        provider: "{{ creds }}"
+        zone_zoneset_details:
+           - vsan: 22
+             mode: enhanced
+             zone:
+                - name: zoneA
+                  members:
+                     - {pwwn: '11:11:11:11:11:11:11:11'}
+                     - {device-alias: 'test123'}
+                     - {pwwn: '61:61:62:62:12:12:12:12', remove: True}
+                - name: zoneB
+                  members:
+                     - {pwwn: '10:11:11:11:11:11:11:11'}
+                     - {pwwn: '62:62:62:62:21:21:21:21'}
+                - name: zoneC
+                  remove: True
+             zoneset:
+                 - name: zsetname1
+                   members:
+                      - {name: zoneA}
+                      - {name: zoneB}
+                      - {name: zoneC, remove: True}
+                   action: activate
+                 - name: zsetTestExtra
+                   remove: True
+                   action: deactivate
+           - vsan: 21
+             mode: basic
+             smart_zoning: True
+             zone:
+                - name: zone21A
+                  members:
+                     - {pwwn: '11:11:11:11:11:11:11:11',devtype: 'both'}
+                     - {pwwn: '62:62:62:62:12:12:12:12'}
+                     - {pwwn: '92:62:62:62:12:12:1a:1a',devtype: 'both', remove: True}
+                - name: zone21B
+                  members:
+                     - {pwwn: '10:11:11:11:11:11:11:11'}
+                     - {pwwn: '62:62:62:62:21:21:21:21'}
+             zoneset:
+                 - name: zsetname21
+                   members:
+                      - {name: zone21A}
+                      - {name: zone21B}
+                   action: activate
+      register: result
+    - debug: var=result  
+  

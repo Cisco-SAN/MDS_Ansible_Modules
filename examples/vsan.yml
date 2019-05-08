@@ -1,0 +1,43 @@
+- name: VSAN TEST (NXOS)
+  gather_facts: no
+  hosts: 
+     - m9250i-107
+  vars:
+    creds:
+      host: "{{ inventory_hostname }}"
+      username: "{{ un }}"
+      password: "{{ pwd }}"
+      transport: cli
+
+  tasks:
+    - name: Test that vsan module works
+      nxos_vsan:
+        #provider: "{{ creds }}"
+        vsan:
+           - id: 922
+             name: vsan-SAN-A
+             suspend: False
+             interface:
+                - fc1/1
+                - fc1/2
+                - port-channel 1
+             remove: False
+           - id: 923
+             name: vsan-SAN-B
+             suspend: True
+             interface:
+                - fc1/11
+                - fc1/21
+                - port-channel 2
+             remove: False
+           - id: 1923
+             name: vsan-SAN-Old
+             remove: True
+      register: result
+    - debug: var=result  
+  
+
+
+
+
+  
