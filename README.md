@@ -8,3 +8,7 @@ https://docs.ansible.com/ansible/2.7/network/user_guide/platform_nxos.html#nxos-
 
 To start using the modules copy the files present in the library folder to the directory pointed by ANSIBLE_LIBRARY environment variable.
 Please look at the examples folder to find out how to use these modules.
+
+Tested version: 
+Ansible : 2.6.1, 2.8.1
+Python : 2.7.5
