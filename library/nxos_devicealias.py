@@ -6,7 +6,7 @@ from __future__ import absolute_import, division, print_function
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.network.nxos.nxos import load_config, nxos_argument_spec, run_commands
 import string
-#from ansible.module_utils import common_utils
+
 __metaclass__ = type
 
 
