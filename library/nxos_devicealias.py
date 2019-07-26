@@ -2,15 +2,9 @@
 # Copyright: Ansible Project
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-from __future__ import absolute_import, division, print_function
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.network.nxos.nxos import load_config, nxos_argument_spec, run_commands
-import string
+from __future__ import (absolute_import, division, print_function)
 
-__metaclass__ = type
-
-
-ANSIBLE_METADATA = {'metadata_version': '1.0',
+ANSIBLE_METADATA = {'metadata_version': '1.1',
                     'status': ['preview'],
                     'supported_by': 'network'}
 
@@ -18,7 +12,7 @@ ANSIBLE_METADATA = {'metadata_version': '1.0',
 DOCUMENTATION = '''
 module: nxos_devicealias
 extends_documentation_fragment: nxos
-version_added: "??"
+version_added: 2.9
 short_description: Configuration of device alias.
 description:
     - Configuration of device alias for Cisco MDS NXOS.
@@ -34,16 +28,18 @@ options:
         description:
             - Mode of devices-alias, basic or enhanced
         choices: ['basic', 'enhanced']
-        default: 'basic'
+        type: str
     da:
         description:
             - List of device-alias to be added or removed
+        type: list
         suboptions:
             name:
                 description:
                     - Name of the device-alias to be added or removed
                 required:
                     True
+                type: str
             pwwn:
                 description:
                     - pwwn to which the name needs to be associated with
@@ -52,25 +48,77 @@ options:
                     - Removes the device-alias if set to True
                 type: bool
                 default: False
-
+    rename:
+        description:
+            - List of device-alias to be renamed
+        type: list
+        suboptions:
+            old_name:
+                description:
+                    - Old name of the device-alias that needs to be renamed
+                required:
+                    True
+                type: str
+            new_name:
+                description:
+                    - New name of the device-alias
+                required:
+                    True
+                type: str
 
 
 '''
 
 EXAMPLES = '''
-- name: Test that device alias module works
-      nxos_devicealias:
-          distribute: yes
-          mode: enhanced
-          da:
-              - { name: 'test1_add', pwwn: '56:2:22:11:22:88:11:67'}
-              - { name: 'test2_add', pwwn: '65:22:22:11:22:22:11:d'}
-              - { name: 'dev1', remove: True}
-              - { name: 'dev2', remove: True} 
-          provider: "{{ creds }}"
-      register: result
-    - debug: var=result
+---
+-
+  name: "Test that device alias module works"
+  nxos_devicealias:
+    da:
+      -
+        name: test1_add
+        pwwn: "56:2:22:11:22:88:11:67"
+      -
+        name: test2_add
+        pwwn: "65:22:22:11:22:22:11:d"
+      -
+        name: dev1
+        remove: true
+      -
+        name: dev2
+        remove: true
+    distribute: true
+    mode: enhanced
+    provider: "{{ creds }}"
+    rename:
+      -
+        new_name: bcd
+        old_name: abc
+      -
+        new_name: bcd1
+        old_name: abc1
+
 '''
+
+RETURN = '''
+commands:
+  description: commands sent to the device
+  returned: always
+  type: list
+  sample:
+    - terminal dont-ask
+    - device-alias database
+    - device-alias name somename pwwn 10:00:00:00:89:a1:01:03
+    - device-alias name somename1 pwwn 10:00:00:00:89:a1:02:03
+    - device-alias commit
+    - no terminal dont-ask
+'''
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.network.nxos.nxos import load_config, nxos_argument_spec, run_commands
+import string
+
+__metaclass__ = type
 
 
 class showDeviceAliasStatus(object):
@@ -83,9 +131,13 @@ class showDeviceAliasStatus(object):
         self.locked = False
         self.update()
 
+    def execute_show_cmd(self, cmd):
+        output = execute_show_command(cmd, self.module)[0]
+        return output
+
     def update(self):
         command = 'show device-alias status'
-        output = execute_show_command(command, self.module)[0].split("\n")
+        output = self.execute_show_cmd(command).split("\n")
         for o in output:
             if "Fabric Distribution" in o:
                 self.distribute = o.split(":")[1].strip().lower()
@@ -98,10 +150,10 @@ class showDeviceAliasStatus(object):
         return self.locked
 
     def getDistribute(self):
-        return self.distribute
+        return self.distribute.lower()
 
     def getMode(self):
-        return self.mode
+        return self.mode.lower()
 
 
 class showDeviceAliasDatabase(object):
@@ -109,22 +161,49 @@ class showDeviceAliasDatabase(object):
 
     def __init__(self, module):
         self.module = module
+        self.da_dict = {}
         self.update()
+
+    def execute_show_cmd(self, cmd):
+        output = execute_show_command(cmd, self.module)[0]
+        return output
 
     def update(self):
         command = 'show device-alias database'
-        output = execute_show_command(command, self.module)
-        self.da_list = output[0].split("\n")
-        # self.module.fail_json(msg=self.da_list)
+        # output = execute_show_command(command, self.module)[0].split("\n")
+        output = self.execute_show_cmd(command)
+        self.da_list = output.split("\n")
+        for eachline in self.da_list:
+            if 'device-alias' in eachline:
+                sv = eachline.strip().split()
+                self.da_dict[sv[2]] = sv[4]
 
     def isNameInDaDatabase(self, name):
-        newname = " " + name + " "
-        return newname in str(self.da_list)
+        return name in self.da_dict.keys()
 
     def isPwwnInDaDatabase(self, pwwn):
         newpwwn = ':'.join(["0" + str(ep) if len(ep) == 1 else ep for ep in pwwn.split(":")])
-        return newpwwn in str(self.da_list)
+        return newpwwn in self.da_dict.values()
 
+    def isNamePwwnPresentInDatabase(self, name, pwwn):
+        newpwwn = ':'.join(["0" + str(ep) if len(ep) == 1 else ep for ep in pwwn.split(":")])
+        if name in self.da_dict.keys():
+            if newpwwn == self.da_dict[name]:
+                return True
+        return False
+
+    def getPwwnByName(self, name):
+        if name in self.da_dict.keys():
+            return self.da_dict[name]
+        else:
+            return None
+
+    def getNameByPwwn(self, pwwn):
+        newpwwn = ':'.join(["0" + str(ep) if len(ep) == 1 else ep for ep in pwwn.split(":")])
+        for n, p in self.da_dict.items():
+            if p == newpwwn:
+                return n
+        return None
 
 
 def isPwwnValid(pwwn):
@@ -154,7 +233,8 @@ def execute_show_command(command, module, command_type='cli_show'):
         'command': command,
         'output': output,
     }]
-    return run_commands(module, commands)
+    out = run_commands(module, commands)
+    return out
 
 
 def flatten_list(command_lists):
@@ -174,10 +254,16 @@ def main():
         remove=dict(type='bool', default=False)
     )
 
+    element_spec_rename = dict(
+        old_name=dict(required=True, type='str'),
+        new_name=dict(required=True, type='str'),
+    )
+
     argument_spec = dict(
-        distribute=dict(type='bool', default=False),
-        mode=dict(type='str', choices=['enhanced', 'basic'], default='basic'),
-        da=dict(type='list', elements='dict', options=element_spec)
+        distribute=dict(type='bool'),
+        mode=dict(type='str', choices=['enhanced', 'basic']),
+        da=dict(type='list', elements='dict', options=element_spec),
+        rename=dict(type='list', elements='dict', options=element_spec_rename)
     )
 
     argument_spec.update(nxos_argument_spec)
@@ -187,42 +273,51 @@ def main():
 
     warnings = list()
     messages = list()
-    commands_executed = list()
+    commands_to_execute = list()
     result = {'changed': False}
 
     distribute = module.params['distribute']
     mode = module.params['mode']
     da = module.params['da']
-    # module.fail_json(msg='Dis ' + str(distribute) + ' Mode ' + str(mode))
+    rename = module.params['rename']
 
-    ###########################################
     # Step 0.0: Validate syntax of name and pwwn
-    ###########################################
+    #       Also validate syntax of rename arguments
     if da is not None:
         for eachdict in da:
             name = eachdict['name']
-            pwwn = eachdict['pwwn']
+            pwwn = eachdict['pwwn'].lower()
             remove = eachdict['remove']
             if not remove:
                 if pwwn is None:
-                    module.fail_json(msg='This device alias name ' + str(name) + ' which needs to be added, doenst have pwwn specified . Please specify a valid pwwn')
+                    module.fail_json(
+                        msg='This device alias name ' +
+                        str(name) +
+                        ' which needs to be added, doenst have pwwn specified . Please specify a valid pwwn')
                 if not isNameValid(name):
-                    module.fail_json(msg='This pwwn name is invalid : ' + str(name) + '. Note that name cannot be more than 64 chars and it should start with a letter')
+                    module.fail_json(msg='This pwwn name is invalid : ' + str(name) +
+                                     '. Note that name cannot be more than 64 chars and it should start with a letter')
                 if not isPwwnValid(pwwn):
                     module.fail_json(msg='This pwwn is invalid : ' + str(pwwn) + '. Please check that its a valid pwwn')
+    if rename is not None:
+        for eachdict in rename:
+            oldname = eachdict['old_name']
+            newname = eachdict['new_name']
+            if not isNameValid(oldname):
+                module.fail_json(msg='This pwwn name is invalid : ' + str(oldname) +
+                                 '. Note that name cannot be more than 64 chars and it should start with a letter')
+            if not isNameValid(newname):
+                module.fail_json(msg='This pwwn name is invalid : ' + str(newname) +
+                                 '. Note that name cannot be more than 64 chars and it should start with a letter')
 
-    ###########################################
     # Step 0.1: Check DA status
-    ###########################################
     shDAStausObj = showDeviceAliasStatus(module)
     d = shDAStausObj.getDistribute()
     m = shDAStausObj.getMode()
     if shDAStausObj.isLocked():
         module.fail_json(msg='device-alias has acquired lock on the switch. Hence cannot procced.')
 
-    ###########################################
     # Step 1: Process distribute
-    ###########################################
     commands = []
     if distribute is not None:
         if distribute:
@@ -241,23 +336,18 @@ def main():
                 messages.append('device-alias distribute changed from enabled to disabled')
             else:
                 messages.append('device-alias distribute remains unchanged. current distribution mode is disabled')
-    if commands:
-        commands.append("device-alias commit")
 
     cmds = flatten_list(commands)
-
     if cmds:
+        commands_to_execute = commands_to_execute + cmds
         if module.check_mode:
             # Check mode implemented at the da_add/da_remove stage
             pass
         else:
             result['changed'] = True
-            commands_executed = commands_executed + cmds
             load_config(module, cmds)
 
-    ###########################################
     # Step 2: Process mode
-    ###########################################
     commands = []
     if mode is not None:
         if mode == 'basic':
@@ -279,62 +369,133 @@ def main():
                 messages.append('device-alias mode remains unchanged. current mode is enhanced')
 
     if commands:
-        commands.append("device-alias commit")
+        if distribute:
+            commands.append("device-alias commit")
+            commands = ["terminal dont-ask"] + commands + ["no terminal dont-ask"]
+        else:
+            if distribute is None and d == 'enabled':
+                commands.append("device-alias commit")
+                commands = ["terminal dont-ask"] + commands + ["no terminal dont-ask"]
 
     cmds = flatten_list(commands)
 
     if cmds:
+        commands_to_execute = commands_to_execute + cmds
         if module.check_mode:
             # Check mode implemented at the end
             pass
         else:
             result['changed'] = True
-            commands_executed = commands_executed + cmds
             load_config(module, cmds)
 
-    ###########################################
     # Step 3: Process da
-    ###########################################
     commands = []
     shDADatabaseObj = showDeviceAliasDatabase(module)
     if da is not None:
         da_remove_list = []
         da_add_list = []
-        commands.append("device-alias database")
         for eachdict in da:
             name = eachdict['name']
-            pwwn = eachdict['pwwn']
+            pwwn = eachdict['pwwn'].lower()
             remove = eachdict['remove']
             if remove:
                 if shDADatabaseObj.isNameInDaDatabase(name):
                     commands.append("no device-alias name " + name)
                     da_remove_list.append(name)
                 else:
-                    module.fail_json(msg='This device alias name is not in switch device-alias database. hence cant be removed : ' + name)
+                    messages.append(name + ' - This device alias name is not in switch device-alias database, hence cannot be removed.')
             else:
-                if shDADatabaseObj.isNameInDaDatabase(name):
-                    module.fail_json(msg='This device alias name is present in switch device-alias database. hence cant be added : ' + name)
-                if shDADatabaseObj.isPwwnInDaDatabase(pwwn):
-                    module.fail_json(msg='This device alias pwwn is present in switch device-alias database. hence cant be added : ' + pwwn)
-                commands.append("device-alias name " + name + " pwwn " + pwwn)
-                da_add_list.append(name)
+                if shDADatabaseObj.isNamePwwnPresentInDatabase(name, pwwn):
+                    messages.append(name + ' : ' + pwwn + ' - This device alias name,pwwn is already in switch device-alias database, \
+                        hence nothing to configure')
+                else:
+                    if shDADatabaseObj.isNameInDaDatabase(name):
+                        module.fail_json(
+                            msg=name +
+                            ' - This device alias name is already present in switch device-alias database but assigned to another pwwn (' +
+                            shDADatabaseObj.getPwwnByName(name) +
+                            ') hence cannot be added')
 
-        commands.append("device-alias commit")
+                    elif shDADatabaseObj.isPwwnInDaDatabase(pwwn):
+                        module.fail_json(
+                            msg=pwwn +
+                            ' - This device alias pwwn is already present in switch device-alias database but assigned to another name (' +
+                            shDADatabaseObj.getNameByPwwn(pwwn) +
+                            ') hence cannot be added')
+
+                    else:
+                        commands.append("device-alias name " + name + " pwwn " + pwwn)
+                        da_add_list.append(name)
+
+        if len(da_add_list) != 0 or len(da_remove_list) != 0:
+            commands = ["device-alias database"] + commands
+            if distribute:
+                commands.append("device-alias commit")
+                commands = ["terminal dont-ask"] + commands + ["no terminal dont-ask"]
+            else:
+                if distribute is None and d == 'enabled':
+                    commands.append("device-alias commit")
+                    commands = ["terminal dont-ask"] + commands + ["no terminal dont-ask"]
+
         cmds = flatten_list(commands)
         if cmds:
+            commands_to_execute = commands_to_execute + cmds
             if module.check_mode:
-                module.exit_json(changed=False, commands=cmds, msg="Check Mode: No cmds issued to the hosts")
+                # Check mode implemented at the end
+                pass
             else:
                 result['changed'] = True
-                commands_executed = commands_executed + cmds
                 load_config(module, cmds)
-                if da_remove_list:
+                if len(da_remove_list) != 0:
                     messages.append('the required device-alias were removed. ' + ','.join(da_remove_list))
-                if da_add_list:
+                if len(da_add_list) != 0:
                     messages.append('the required device-alias were added. ' + ','.join(da_add_list))
 
+    # Step 5: Process rename
+    commands = []
+    if rename is not None:
+        for eachdict in rename:
+            oldname = eachdict['old_name']
+            newname = eachdict['new_name']
+            if shDADatabaseObj.isNameInDaDatabase(newname):
+                module.fail_json(
+                    changed=False,
+                    commands=cmds,
+                    msg=newname +
+                    " - this name is already present in the device-alias database, hence we cannot rename " +
+                    oldname +
+                    " with this one")
+            if shDADatabaseObj.isNameInDaDatabase(oldname):
+                commands.append('device-alias rename ' + oldname + ' ' + newname)
+            else:
+                module.fail_json(changed=False, commands=cmds, msg=oldname +
+                                 " - this name is not present in the device-alias database, hence we cannot rename.")
+
+        if len(commands) != 0:
+            commands = ["device-alias database"] + commands
+            if distribute:
+                commands.append("device-alias commit")
+                commands = ["terminal dont-ask"] + commands + ["no terminal dont-ask"]
+            else:
+                if distribute is None and d == 'enabled':
+                    commands.append("device-alias commit")
+                    commands = ["terminal dont-ask"] + commands + ["no terminal dont-ask"]
+        cmds = flatten_list(commands)
+        if cmds:
+            commands_to_execute = commands_to_execute + cmds
+            if module.check_mode:
+                # Check mode implemented at the end
+                pass
+            else:
+                result['changed'] = True
+                load_config(module, cmds)
+
+    # Step END: check for 'check' mode
+    if module.check_mode:
+        module.exit_json(changed=False, commands=commands_to_execute, msg="Check Mode: No cmds issued to the hosts")
+
     result['messages'] = messages
-    result['cmds'] = commands_executed
+    result['commands'] = commands_to_execute
     result['warnings'] = warnings
     module.exit_json(**result)
 
