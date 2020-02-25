@@ -286,8 +286,10 @@ def main():
     if da is not None:
         for eachdict in da:
             name = eachdict['name']
-            pwwn = eachdict['pwwn'].lower()
+            pwwn = eachdict['pwwn']
             remove = eachdict['remove']
+            if pwwn is not None:
+                pwwn = pwwn.lower()
             if not remove:
                 if pwwn is None:
                     module.fail_json(
@@ -396,8 +398,10 @@ def main():
         da_add_list = []
         for eachdict in da:
             name = eachdict['name']
-            pwwn = eachdict['pwwn'].lower()
+            pwwn = eachdict['pwwn']
             remove = eachdict['remove']
+            if pwwn is not None:
+                pwwn = pwwn.lower()
             if remove:
                 if shDADatabaseObj.isNameInDaDatabase(name):
                     commands.append("no device-alias name " + name)
