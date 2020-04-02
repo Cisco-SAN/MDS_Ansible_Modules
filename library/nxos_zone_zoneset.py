@@ -425,8 +425,7 @@ def getMemType(supported_choices, allmemkeys, default='pwwn'):
     for eachchoice in supported_choices:
         if eachchoice in allmemkeys:
             return eachchoice
-        else:
-            return default
+    return default
 
 
 def main():
