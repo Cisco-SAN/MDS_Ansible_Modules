@@ -425,7 +425,8 @@ def getMemType(supported_choices, allmemkeys, default='pwwn'):
     for eachchoice in supported_choices:
         if eachchoice in allmemkeys:
             return eachchoice
-    return default
+        else:
+            return default
 
 
 def main():
@@ -710,9 +711,7 @@ def main():
                     else:
                         messages.append("zoneset '" + zsetname + "' in vsan " + str(vsan) + " is not activated, hence cannot deactivate")
                 elif actionflag == 'activate':
-                    if shZonesetActiveObj.isZonesetActive(zsetname):
-                        messages.append("zoneset '" + zsetname + "' in vsan " + str(vsan) + " is already activated")
-                    else:
+                # If zoneset is set to active, activate every time
                         messages.append("activating zoneset '" + zsetname + "' in vsan " + str(vsan))
                         actcmd.append("zoneset activate name " + zsetname + " vsan " + str(vsan))
             commands_executed = commands_executed + dactcmd + actcmd
