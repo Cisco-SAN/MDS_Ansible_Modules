@@ -100,7 +100,6 @@ options:
                         description:
                             - activates/de-activates the zoneset
                         choices: ['activate', 'deactivate']
-                        default: 'deactivate'
                     members:
                         description:
                             - Members of the zoneset that needs to be removed or added
