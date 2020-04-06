@@ -79,6 +79,7 @@ options:
                                 description:
                                     - devtype of the zone member used along with Smart zoning config
                                 choices: ['initiator', 'target', 'both']
+                                required: true
 
 
             zoneset:
@@ -100,7 +101,6 @@ options:
                         description:
                             - activates/de-activates the zoneset
                         choices: ['activate', 'deactivate']
-                        default: 'deactivate'
                     members:
                         description:
                             - Members of the zoneset that needs to be removed or added
@@ -135,6 +135,7 @@ EXAMPLES = '''
                 pwwn: "11:11:11:11:11:11:11:11"
               -
                 device-alias: test123
+                devtype: 'initiator'
               -
                 pwwn: "61:61:62:62:12:12:12:12"
                 remove: true
@@ -335,7 +336,9 @@ class ShowZone(object):
 
     def isZoneMemberPresent(self, zname, cmd):
         if zname in self.zDetails.keys():
-            return cmd in self.zDetails[zname]
+            for zmember in self.zDetails[zname]:
+                if zmember in cmd:
+                    return True
         return False
 
 
@@ -433,7 +436,7 @@ def main():
     supported_choices = ['device-alias']
     zone_member_spec = dict(
         pwwn=dict(required=True, type='str', aliases=['device-alias']),
-        devtype=dict(type='str', choices=['initiator', 'target', 'both']),
+        devtype=dict(required=True, type='str', choices=['initiator', 'target', 'both']),
         remove=dict(type='bool', default=False)
     )
 
