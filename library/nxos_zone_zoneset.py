@@ -42,9 +42,10 @@ options:
                 default: 'deny'
             smart_zoning:
                 description:
-                    - Removes the vsan if True
+                    - enables smart zoning if True
                 type: bool
                 default: False
+                required: True
             zone:
                 description:
                     - List of zone options for that vsan
@@ -79,7 +80,7 @@ options:
                                 description:
                                     - devtype of the zone member used along with Smart zoning config
                                 choices: ['initiator', 'target', 'both']
-                                required: true
+                                required: when smart_zoning is set to true
 
 
             zoneset:
@@ -127,6 +128,7 @@ EXAMPLES = '''
     zone_zoneset_details:
       -
         mode: enhanced
+        smart_zoning: false
         vsan: 22
         zone:
           -
@@ -135,7 +137,6 @@ EXAMPLES = '''
                 pwwn: "11:11:11:11:11:11:11:11"
               -
                 device-alias: test123
-                devtype: 'initiator'
               -
                 pwwn: "61:61:62:62:12:12:12:12"
                 remove: true
@@ -174,10 +175,11 @@ EXAMPLES = '''
           -
             members:
               -
-                devtype: both
+                devtype: target
                 pwwn: "11:11:11:11:11:11:11:11"
               -
                 pwwn: "62:62:62:62:12:12:12:12"
+                devtype: initiator
               -
                 devtype: both
                 pwwn: "92:62:62:62:12:12:1a:1a"
@@ -186,9 +188,11 @@ EXAMPLES = '''
           -
             members:
               -
-                pwwn: "10:11:11:11:11:11:11:11"
+                device-alias: host1
+                devtype: initiator
               -
-                pwwn: "62:62:62:62:21:21:21:21"
+                pwwn: target1
+                devtype: target
             name: zone21B
         zoneset:
           -
@@ -436,7 +440,7 @@ def main():
     supported_choices = ['device-alias']
     zone_member_spec = dict(
         pwwn=dict(required=True, type='str', aliases=['device-alias']),
-        devtype=dict(required=True, type='str', choices=['initiator', 'target', 'both']),
+        devtype=dict(type='str', choices=['initiator', 'target', 'both']),
         remove=dict(type='bool', default=False)
     )
 
@@ -462,7 +466,7 @@ def main():
         vsan=dict(required=True, type='int'),
         mode=dict(type='str', choices=['enhanced', 'basic']),
         default_zone=dict(type='str', choices=['permit', 'deny']),
-        smart_zoning=dict(type='bool'),
+        smart_zoning=dict(required=True, type='bool'),
         zone=dict(type='list', elements='dict', options=zone_spec),
         zoneset=dict(type='list', elements='dict', options=zoneset_spec),
     )
@@ -470,7 +474,7 @@ def main():
     argument_spec = dict(
         zone_zoneset_details=dict(type='list', elements='dict', options=zonedetails_spec)
     )
-
+    
     argument_spec.update(nxos_argument_spec)
 
     module = AnsibleModule(argument_spec=argument_spec,
@@ -568,12 +572,16 @@ def main():
                             messages.append("zone '" + zname + "' is created in vsan " + str(vsan))
                     else:
                         cmdmemlist = []
+                        failedmembers = []
                         for eachmem in zmembers:
                             memtype = getMemType(supported_choices, eachmem.keys())
                             cmd = memtype + " " + eachmem[memtype]
                             if op_smart_zoning or sw_smart_zoning_bool:
                                 if eachmem['devtype'] is not None:
                                     cmd = cmd + " " + eachmem['devtype']
+                                else:
+                                    failedmembers.append('Smart zoning is enabled for vsan ' + str(vsan) + ', but zone ' + zname + ' member ' + eachmem['device-alias'] + ' does not have a defined devtype')
+                                    continue
                             if eachmem["remove"]:
                                 if shZoneObj.isZonePresent(zname):
                                     if shZoneObj.isZoneMemberPresent(zname, cmd):
@@ -613,7 +621,7 @@ def main():
                                                 str(vsan) +
                                                 " hence nothing to remove")
                                 else:
-                                    messages.append("zone '" + zname + "' is not present in vsan " + str(vsan) + " , hence cannot remove the members")
+                                    messages.append("zone '" + zname + "' is not present in vsan " + str(vsan) + ", hence cannot remove the members")
 
                             else:
                                 if shZoneObj.isZoneMemberPresent(zname, cmd):
@@ -652,6 +660,8 @@ def main():
                                             str(vsan))
                                     else:
                                         messages.append("adding zone member '" + eachmem[memtype] + "' to zone '" + zname + "' in vsan " + str(vsan))
+                        if len(failedmembers) != 0:
+                            module.fail_json(msg=failedmembers)
                         if len(cmdmemlist) != 0:
                             commands_executed.append("zone name " + zname + " vsan " + str(vsan))
                             commands_executed = commands_executed + cmdmemlist
