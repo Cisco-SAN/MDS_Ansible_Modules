@@ -219,11 +219,15 @@ def isPwwnValid(pwwn):
 
 
 def isNameValid(name):
+    validdacharacters = '-','_','$','^'
     if not name[0].isalpha():
         # Illegal first character. Name must start with a letter
         return False
     if len(name) > 64:
         return False
+    for character in name:
+        if not character.isalnum() and character not in validdacharacters:
+            return False
     return True
 
 
@@ -295,10 +299,10 @@ def main():
                     module.fail_json(
                         msg='This device alias name ' +
                         str(name) +
-                        ' which needs to be added, doenst have pwwn specified . Please specify a valid pwwn')
+                        ' which needs to be added, does not have pwwn specified . Please specify a valid pwwn')
                 if not isNameValid(name):
                     module.fail_json(msg='This pwwn name is invalid : ' + str(name) +
-                                     '. Note that name cannot be more than 64 chars and it should start with a letter')
+                                     '. Note that name cannot be more than 64 alphanumeric chars, it must start with a letter, and can only contain "-", "_", "$", or "^" characters')
                 if not isPwwnValid(pwwn):
                     module.fail_json(msg='This pwwn is invalid : ' + str(pwwn) + '. Please check that its a valid pwwn')
     if rename is not None:
@@ -307,10 +311,10 @@ def main():
             newname = eachdict['new_name']
             if not isNameValid(oldname):
                 module.fail_json(msg='This pwwn name is invalid : ' + str(oldname) +
-                                 '. Note that name cannot be more than 64 chars and it should start with a letter')
+                                 '. Note that name cannot be more than 64 alphanumeric chars, it must start with a letter, and can only contain "-", "_", "$", or "^" characters')
             if not isNameValid(newname):
                 module.fail_json(msg='This pwwn name is invalid : ' + str(newname) +
-                                 '. Note that name cannot be more than 64 chars and it should start with a letter')
+                                 '. Note that name cannot be more than 64 alphanumeric chars, it must start with a letter, and can only contain "-", "_", "$", or "^" characters')
 
     # Step 0.1: Check DA status
     shDAStausObj = showDeviceAliasStatus(module)
