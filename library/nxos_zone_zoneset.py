@@ -318,6 +318,8 @@ class ShowZone(object):
         for line in output:
             line = ' '.join(line.strip().split())
             m = re.match(patZone, line)
+            if 'init' in line:
+                line = line.replace('init', 'initiator')
             if m:
                 zonename = m.group(1).strip()
                 self.zDetails[zonename] = []
