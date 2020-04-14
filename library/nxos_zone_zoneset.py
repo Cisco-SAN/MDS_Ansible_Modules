@@ -318,6 +318,8 @@ class ShowZone(object):
         for line in output:
             line = ' '.join(line.strip().split())
             m = re.match(patZone, line)
+            if 'init' in line:
+                line = line.replace('init', 'initiator')
             if m:
                 zonename = m.group(1).strip()
                 self.zDetails[zonename] = []
@@ -710,11 +712,8 @@ def main():
                     else:
                         messages.append("zoneset '" + zsetname + "' in vsan " + str(vsan) + " is not activated, hence cannot deactivate")
                 elif actionflag == 'activate':
-                    if shZonesetActiveObj.isZonesetActive(zsetname):
-                        messages.append("zoneset '" + zsetname + "' in vsan " + str(vsan) + " is already activated")
-                    else:
-                        messages.append("activating zoneset '" + zsetname + "' in vsan " + str(vsan))
-                        actcmd.append("zoneset activate name " + zsetname + " vsan " + str(vsan))
+                    messages.append("activating zoneset '" + zsetname + "' in vsan " + str(vsan))
+                    actcmd.append("zoneset activate name " + zsetname + " vsan " + str(vsan))
             commands_executed = commands_executed + dactcmd + actcmd
 
         if commands_executed:
