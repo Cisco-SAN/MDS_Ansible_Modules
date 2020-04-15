@@ -337,7 +337,10 @@ class ShowZone(object):
 
     def isZoneMemberPresent(self, zname, cmd):
         if zname in self.zDetails.keys():
-            return cmd in self.zDetails[zname]
+            zonememlist = self.zDetails[zname]
+            for eachline in zonememlist:
+                if cmd in eachline:
+                    return True
         return False
 
 
