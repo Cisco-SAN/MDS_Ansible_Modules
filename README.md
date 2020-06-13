@@ -10,5 +10,5 @@ To start using the modules copy the files present in the library folder to the d
 Please look at the examples folder to find out how to use these modules.
 
 Tested version: 
-Ansible : 2.6.1, 2.8.1
+Ansible : 2.6.1, 2.8.1, 2.9
 Python : 2.7.5
