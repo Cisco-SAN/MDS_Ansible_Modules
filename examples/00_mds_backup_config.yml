@@ -1,0 +1,12 @@
+---
+- name: Configurable backup path
+  gather_facts: no
+  hosts:
+    - ndcssr_fabric_b_switches
+  tasks:
+    - name: testing the backing up of switch running config
+      cisco.nxos.nxos_config:
+        backup: yes
+        backup_options:
+          dir_path: /home/ansible/
+

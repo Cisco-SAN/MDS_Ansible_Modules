@@ -1,0 +1,12 @@
+- name: Cisco MDS VSAN configuration (NXOS) playbook.
+  gather_facts: no
+  hosts:
+    - ndcssr_fabric_b_switches
+  tasks:
+    - name: Test running adhoc Cisco MDS commands.
+      cisco.nxos.nxos_command:
+        commands: 
+        - { command: 'show version', output: json }
+        - { command: 'show interface fc1/4', output: json }
+      register: result
+    - debug: var=result

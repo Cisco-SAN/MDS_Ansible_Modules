@@ -1,0 +1,24 @@
+- name: Device Alias (NXOS)
+  gather_facts: no
+  hosts:
+    - ndcssr_fabric_b_switches
+  vars:
+    creds:
+      host: "{{ inventory_hostname }}"
+      username: "{{ un }}"
+      password: "{{ pwd }}"
+      transport: cli
+  tasks:
+
+    - name: Test that device alias module works
+      nxos_devicealias:
+          mode: basic 
+          da:
+              - { name: 'ndcssr1srv01_hba4', pwwn: '51:40:2e:c0:12:43:5c:52'}
+              - { name: 'ndcssr1srv02_hba4', pwwn: '51:40:2e:c0:12:43:5c:a6'}
+              - { name: 'ndcssr1srv03_hba4', pwwn: '51:40:2e:c0:12:43:5d:2e'}
+              - { name: 'ndcssrxio001_x1_sc1_fc4', pwwn: '51:4f:0c:50:06:4f:8f:00'}
+              - { name: 'ndcssrxio001_x1_sc2_fc4', pwwn: '51:4f:0c:50:06:4f:8f:04'}
+          provider: "{{ creds }}"
+      register: result
+    - debug: var=result

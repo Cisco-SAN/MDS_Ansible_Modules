@@ -1,0 +1,56 @@
+---
+- name: Zoning test (NXOS)
+  gather_facts: no
+  hosts:
+    - ndcssr_fabric_b_switches
+  vars:
+    creds:
+      host: "{{ inventory_hostname }}"
+      username: "{{ un }}"
+      password: "{{ pwd }}"
+      transport: cli
+
+  tasks:
+    - name: Test that zone/zoneset module works
+      nxos_zone_zoneset:
+        provider: "{{ creds }}"
+        zone_zoneset_details:
+           - vsan: 25
+             mode: basic
+             zone:
+                - name: NDCSSR1SRV02_HBA4_NDCSSRXIO001_X1_SC2_FC4 
+                  members: 
+                     - { device_alias: 'ndcssr1srv02_hba4' }
+                     - { device_alias: 'ndcssrxio001_x1_sc2_fc4' }
+                - name: NDCSSR1SRV02_HBA4_NDCSSRXIO001_X1_SC1_FC4 
+                  members:
+                     - { device_alias: 'ndcssr1srv02_hba4' }
+                     - { device_alias: 'ndcssrxio001_x1_sc1_fc4' }
+                - name: NDCSSR1SRV01_HBA4_NDCSSRXIO001_X1_SC2_FC4 
+                  members:   
+                     - { device_alias: 'ndcssr1srv01_hba4' }
+                     - { device_alias: 'ndcssrxio001_x1_sc2_fc4' }
+                - name: NDCSSR1SRV01_HBA4_NDCSSRXIO001_X1_SC1_FC4 
+                  members:
+                     - { device_alias: 'ndcssr1srv01_hba4' }
+                     - { device_alias: 'ndcssrxio001_x1_sc1_fc4' }
+                - name: NDCSSR1SRV03_HBA4_NDCSSRXIO001_X1_SC2_FC4 
+                  members:
+                     - { device_alias: 'ndcssr1srv03_hba4' }
+                     - { device_alias: 'ndcssrxio001_x1_sc2_fc4' }
+                - name: NDCSSR1SRV03_HBA4_NDCSSRXIO001_X1_SC1_FC4
+                  members:
+                     - { device_alias: 'ndcssr1srv03_hba4' }
+                     - { device_alias: 'ndcssrxio001_x1_sc1_fc4' }
+             zoneset:
+                 - name: ndcssrcsc201b_XIO_VSAN
+                   members:
+                      - { name: NDCSSR1SRV02_HBA4_NDCSSRXIO001_X1_SC2_FC4 }
+                      - { name: NDCSSR1SRV02_HBA4_NDCSSRXIO001_X1_SC1_FC4 }
+                      - { name: NDCSSR1SRV01_HBA4_NDCSSRXIO001_X1_SC2_FC4 }
+                      - { name: NDCSSR1SRV01_HBA4_NDCSSRXIO001_X1_SC1_FC4 }
+                      - { name: NDCSSR1SRV03_HBA4_NDCSSRXIO001_X1_SC2_FC4 }
+                      - { name: NDCSSR1SRV03_HBA4_NDCSSRXIO001_X1_SC1_FC4 }
+                   action: activate
+      register: result
+    - debug: var=result

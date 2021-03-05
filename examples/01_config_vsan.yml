@@ -1,0 +1,14 @@
+- name: Cisco MDS VSAN configuration (NXOS) playbook
+  gather_facts: no
+  hosts:
+    - ndcssr_fabric_b_switches
+  tasks:
+    - name: Test vsan configuration 
+      cisco.nxos.nxos_vsan:
+        vsan:
+        - id: 1 
+          interface:
+          -  fc1/4
+          -  fc1/5
+      register: result
+    - debug: var=result
